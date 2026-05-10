@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Canvas: #1a1a1a. Everything else builds upward from here. */
+    --background: 0 0% 10%;          /* #1a1a1a */
+    --foreground: 0 0% 96%;          /* #f5f5f5 */
+
+    --card: 0 0% 14%;                /* #242424 — clear lift above canvas */
+    --card-foreground: 0 0% 96%;
+
+    --popover: 0 0% 16%;             /* #292929 — slightly higher than card */
+    --popover-foreground: 0 0% 96%;
+
+    --muted: 0 0% 18%;               /* #2e2e2e — subtle secondary surface */
+    --muted-foreground: 0 0% 66%;    /* #a8a8a8 — calm body text */
+
+    --border: 0 0% 22%;              /* #383838 — quiet hairline */
+    --input: 0 0% 22%;
+    --ring: 0 0% 38%;                /* focus outline */
+
+    --radius: 0.75rem;
+
+    /* Brand color — set at runtime by OrganizationProvider.
+       Default is the muted teal demo accent. */
+    --brand-rgb: 91 138 134;
+    --brand-foreground-rgb: 255 255 255;
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calc" 1, "ss01" 1;
+    /* Subtle top vignette — keeps the canvas from feeling totally flat
+       without turning into a gradient feature. Tuned for #1a1a1a. */
+    background-image: radial-gradient(
+      120% 80% at 50% -10%,
+      rgba(255, 255, 255, 0.018),
+      transparent 60%
+    );
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  /* Floating card surface. Used by the <Card> primitive — soft drop shadow
+     and a 1px rim-light at the top edge for the "glass" cue. Shadows are
+     tuned for the #1a1a1a canvas: black-on-dark separation reads cleanly. */
+  .surface-floating {
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+      0 1px 2px 0 rgba(0, 0, 0, 0.55),
+      0 8px 24px -6px rgba(0, 0, 0, 0.45);
+  }
+
+  .surface-floating-hover {
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+      0 1px 2px 0 rgba(0, 0, 0, 0.55),
+      0 14px 32px -6px rgba(0, 0, 0, 0.55);
+  }
+
+  /* Glass surface — translucent dark fill + backdrop blur. Used on the
+     dialog backdrop, sidebars, popovers — anywhere we want depth without
+     flooding with color. Fills are tuned to sit between background and card. */
+  .surface-glass {
+    background: rgba(26, 26, 26, 0.7);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+
+  .surface-glass-strong {
+    background: rgba(22, 22, 22, 0.78);
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+  }
+
+  /* Brand-color progress bar fill. */
+  .brand-progress {
+    background: rgb(var(--brand-rgb));
+  }
+}

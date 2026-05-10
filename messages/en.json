@@ -1,0 +1,108 @@
+{
+  "Common": {
+    "loading": "Loading…",
+    "noPermission": "You don't have permission to view this.",
+    "comingSoon": "Coming soon",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "archive": "Archive",
+    "edit": "Edit"
+  },
+  "Sidebar": {
+    "content": "Content",
+    "dashboard": "Dashboard",
+    "roles": "Roles",
+    "ambassadors": "Ambassadors",
+    "settings": "Settings"
+  },
+  "Ambassadors": {
+    "title": "Ambassadors",
+    "subnav": {
+      "campaigns": "Campaigns",
+      "overview": "Overview",
+      "rewards": "Rewards",
+      "list": "Our Ambassadors"
+    },
+    "Campaigns": {
+      "title": "Campaigns",
+      "newCampaign": "New campaign",
+      "addContent": "Add content",
+      "metrics": {
+        "activeCampaigns": "Active campaigns",
+        "pointsAwardedThisMonth": "Points awarded this month",
+        "totalReachThisMonth": "Total reach this month",
+        "moneySavedThisMonth": "Money saved this month",
+        "totalShares": "Total shares",
+        "totalReach": "Total reach",
+        "pointsAwarded": "Points awarded",
+        "moneySaved": "Money saved",
+        "activeAmbassadors": "Active ambassadors",
+        "avgViewsPerShare": "Avg. views / share"
+      },
+      "status": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "active": "Active",
+        "paused": "Paused",
+        "ended": "Ended",
+        "archived": "Archived"
+      },
+      "empty": {
+        "title": "No campaigns yet",
+        "cta": "Start your first campaign"
+      }
+    },
+    "Overview": {
+      "title": "Overview",
+      "ranges": { "7d": "7d", "30d": "30d", "90d": "90d", "custom": "Custom" },
+      "campaignFilter": "All campaigns"
+    },
+    "Rewards": {
+      "title": "Rewards",
+      "tabs": { "catalog": "Catalog", "redemptions": "Redemptions" },
+      "newReward": "New reward",
+      "outOfStock": "Out of stock",
+      "stockLeft": "{remaining} / {total} left",
+      "markFulfilled": "Mark fulfilled"
+    },
+    "List": {
+      "title": "Our Ambassadors",
+      "tabs": {
+        "approved": "Approved",
+        "pending": "Requests",
+        "rejected": "Rejected",
+        "suspended": "Suspended"
+      },
+      "actions": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "suspend": "Suspend",
+        "remove": "Remove",
+        "reinstate": "Reinstate"
+      },
+      "empty": {
+        "approved": {
+          "title": "No ambassadors yet",
+          "description": "Approved ambassadors appear here."
+        },
+        "pending": {
+          "title": "No applications waiting",
+          "description": "New applications appear here as ambassadors apply."
+        }
+      },
+      "rejectDialog": {
+        "title": "Reject application",
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Visible to internal admins only"
+      }
+    },
+    "AmbassadorDetail": {
+      "lifetimePoints": "Lifetime points earned",
+      "currentBalance": "Current balance",
+      "totalShares": "Total shares",
+      "totalReach": "Total reach",
+      "moneyGenerated": "Money generated"
+    }
+  }
+}
