@@ -19,7 +19,7 @@ export const Card = forwardRef<
     <div
       ref={ref}
       className={cn(
-        "rounded-2xl border border-border/60 bg-card text-card-foreground surface-floating",
+        "rounded-2xl border border-border/60 text-card-foreground surface-floating surface-glass-dim",
         interactive &&
           "transition-shadow hover:surface-floating-hover hover:border-border",
         className,

@@ -141,7 +141,7 @@ function EmptyState({
   onCtaClick?: () => void;
 }) {
   return (
-    <div className="flex h-[40vh] flex-col items-center justify-center rounded-xl border border-dashed border-border/70 bg-card/30 px-6 text-center">
+    <div className="surface-glass-dim flex h-[40vh] flex-col items-center justify-center rounded-xl border border-dashed border-border/70 px-6 text-center">
       <p className="text-sm font-medium text-foreground">{title}</p>
       {onCtaClick ? (
         <Button className="mt-4" onClick={onCtaClick}>

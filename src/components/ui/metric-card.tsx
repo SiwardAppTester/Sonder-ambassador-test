@@ -28,7 +28,7 @@ export function MetricCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border/60 bg-card surface-floating px-5 py-4",
+        "rounded-2xl border border-border/60 surface-floating surface-glass-dim px-5 py-4",
         className,
       )}
     >

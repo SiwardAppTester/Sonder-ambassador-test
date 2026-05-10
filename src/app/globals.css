@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    /* Canvas: #1a1a1a. Everything else builds upward from here. */
-    --background: 0 0% 10%;          /* #1a1a1a */
+    /* Canvas: #0D0D10. Everything else builds upward from here. */
+    --background: 240 10% 6%;        /* #0D0D10 */
     --foreground: 0 0% 96%;          /* #f5f5f5 */
 
     --card: 0 0% 14%;                /* #242424 — clear lift above canvas */
@@ -27,6 +27,32 @@
        Default is the muted teal demo accent. */
     --brand-rgb: 91 138 134;
     --brand-foreground-rgb: 255 255 255;
+
+    /* Alpha of the dashboard's aurora wash. Tuned per-theme below —
+       light backgrounds need a stronger value to be visible. */
+    --aurora-alpha: 0.13;
+  }
+
+  /* Light theme — activated by `.light` class on <html> (set by the
+     inline init script in app/layout.tsx + ThemeProvider). */
+  .light {
+    --background: 0 0% 98%;          /* #fafafa — soft off-white */
+    --foreground: 0 0% 12%;          /* #1f1f1f — near-black ink */
+
+    --card: 0 0% 100%;               /* pure white card */
+    --card-foreground: 0 0% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 12%;
+
+    --muted: 0 0% 95%;               /* #f2f2f2 */
+    --muted-foreground: 0 0% 40%;    /* #666 */
+
+    --border: 0 0% 88%;              /* #e0e0e0 */
+    --input: 0 0% 88%;
+    --ring: 0 0% 60%;                /* focus outline */
+
+    --aurora-alpha: 0.35;            /* needs ~3× more punch over white */
   }
 
   html, body {
@@ -37,13 +63,23 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calc" 1, "ss01" 1;
     /* Subtle top vignette — keeps the canvas from feeling totally flat
-       without turning into a gradient feature. Tuned for #1a1a1a. */
+       without turning into a gradient feature. */
     background-image: radial-gradient(
       120% 80% at 50% -10%,
       rgba(255, 255, 255, 0.018),
       transparent 60%
     );
     background-attachment: fixed;
+  }
+
+  /* In light mode the vignette flips to a faint dark wash so the page
+     still has a hint of depth at the top instead of pure flat white. */
+  .light body {
+    background-image: radial-gradient(
+      120% 80% at 50% -10%,
+      rgba(0, 0, 0, 0.025),
+      transparent 60%
+    );
   }
 }
 
@@ -69,19 +105,103 @@
      dialog backdrop, sidebars, popovers — anywhere we want depth without
      flooding with color. Fills are tuned to sit between background and card. */
   .surface-glass {
-    background: rgba(26, 26, 26, 0.7);
+    background: rgba(13, 13, 16, 0.7);
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
   }
 
   .surface-glass-strong {
-    background: rgba(22, 22, 22, 0.78);
+    background: rgba(9, 9, 12, 0.78);
     backdrop-filter: blur(22px) saturate(160%);
     -webkit-backdrop-filter: blur(22px) saturate(160%);
+  }
+
+  /* Frosted-glass surface — translucent WHITE tint instead of dark. Used
+     when a card should read as lifted/luminous on a near-black canvas. */
+  .surface-glass-light {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+
+  /* Smoked-glass surface — translucent BLACK tint. Cards read as
+     recessed/heavy rather than luminous. The surface-floating rim-light
+     baked into <Card> still gives a clean top edge for separation. */
+  .surface-glass-dim {
+    background: rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(18px) saturate(120%);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+  }
+
+  /* ── Light-mode overrides for the surfaces above ─────────────────
+     The base utilities are tuned for the dark canvas; on white we
+     need to flip the tints and soften the shadows so cards don't
+     look like floating black bricks. */
+  .light .surface-floating {
+    box-shadow:
+      0 1px 2px 0 rgba(0, 0, 0, 0.04),
+      0 8px 24px -6px rgba(0, 0, 0, 0.08);
+  }
+  .light .surface-floating-hover {
+    box-shadow:
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      0 14px 32px -6px rgba(0, 0, 0, 0.12);
+  }
+  .light .surface-glass {
+    background: rgba(255, 255, 255, 0.7);
+  }
+  .light .surface-glass-strong {
+    background: rgba(255, 255, 255, 0.85);
+  }
+  .light .surface-glass-light {
+    background: rgba(0, 0, 0, 0.04);
+  }
+  .light .surface-glass-dim {
+    background: rgba(255, 255, 255, 0.6);
   }
 
   /* Brand-color progress bar fill. */
   .brand-progress {
     background: rgb(var(--brand-rgb));
+  }
+
+  /* Rainbow hue slider for the brand-color picker. Webkit + Firefox need
+     separate thumb pseudo-elements; the shared design is a small white
+     puck with a thin dark ring so it reads on any hue. */
+  .hue-slider {
+    background: linear-gradient(
+      to right,
+      hsl(0, 100%, 50%),
+      hsl(60, 100%, 50%),
+      hsl(120, 100%, 50%),
+      hsl(180, 100%, 50%),
+      hsl(240, 100%, 50%),
+      hsl(300, 100%, 50%),
+      hsl(360, 100%, 50%)
+    );
+  }
+  .hue-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: #fff;
+    border: 2px solid #fff;
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.6),
+      0 1px 3px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+  }
+  .hue-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: #fff;
+    border: none;
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.6),
+      0 1px 3px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
   }
 }

@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { contrastingForegroundTriplet, hexToRgbTriplet } from "@/lib/utils";
 
 export type Organization = {
@@ -14,9 +22,15 @@ export type Organization = {
 
 type OrganizationContextValue = {
   organization: Organization;
+  /** The currently-applied brand color hex (override if set, else org default). */
+  brandColor: string;
+  /** Set a brand color override (persisted to localStorage). Pass `null` to clear. */
+  setBrandColor: (hex: string | null) => void;
 };
 
 const OrganizationContext = createContext<OrganizationContextValue | null>(null);
+
+const BRAND_OVERRIDE_KEY = "brand-color-override";
 
 const DEMO_ORG: Organization = {
   id: "00000000-0000-0000-0000-000000000001",
@@ -32,6 +46,9 @@ const DEMO_ORG: Organization = {
  * into a CSS custom property so `bg-brand`, `text-brand`, etc. resolve to
  * the org's color. Replace the demo default with the real org fetch when
  * wiring this up to live auth.
+ *
+ * Also supports a user-level brand override (persisted to localStorage),
+ * applied via `setBrandColor()` from the BrandCustomizer in the sidebar.
  */
 export function OrganizationProvider({
   children,
@@ -40,15 +57,35 @@ export function OrganizationProvider({
   children: ReactNode;
   organization?: Organization;
 }) {
+  const [brandOverride, setBrandOverride] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(BRAND_OVERRIDE_KEY);
+  });
+
+  const effectiveColor = brandOverride ?? organization.themeColor;
+
   useEffect(() => {
-    const rgb = hexToRgbTriplet(organization.themeColor);
+    const rgb = hexToRgbTriplet(effectiveColor);
     if (!rgb) return;
-    const fg = contrastingForegroundTriplet(organization.themeColor);
+    const fg = contrastingForegroundTriplet(effectiveColor);
     document.documentElement.style.setProperty("--brand-rgb", rgb);
     document.documentElement.style.setProperty("--brand-foreground-rgb", fg);
-  }, [organization.themeColor]);
+  }, [effectiveColor]);
 
-  const value = useMemo(() => ({ organization }), [organization]);
+  const setBrandColor = useCallback((hex: string | null) => {
+    if (hex === null) {
+      window.localStorage.removeItem(BRAND_OVERRIDE_KEY);
+      setBrandOverride(null);
+      return;
+    }
+    window.localStorage.setItem(BRAND_OVERRIDE_KEY, hex);
+    setBrandOverride(hex);
+  }, []);
+
+  const value = useMemo<OrganizationContextValue>(
+    () => ({ organization, brandColor: effectiveColor, setBrandColor }),
+    [organization, effectiveColor, setBrandColor],
+  );
 
   return <OrganizationContext.Provider value={value}>{children}</OrganizationContext.Provider>;
 }
@@ -57,4 +94,10 @@ export function useOrganization() {
   const ctx = useContext(OrganizationContext);
   if (!ctx) throw new Error("useOrganization must be used inside <OrganizationProvider>");
   return ctx.organization;
+}
+
+export function useBrandColor() {
+  const ctx = useContext(OrganizationContext);
+  if (!ctx) throw new Error("useBrandColor must be used inside <OrganizationProvider>");
+  return { brandColor: ctx.brandColor, setBrandColor: ctx.setBrandColor };
 }

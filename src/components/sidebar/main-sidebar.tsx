@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { LayoutDashboard, FileText, Users, Settings, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandCustomizer } from "@/components/sidebar/brand-customizer";
+import { ThemeToggle } from "@/components/sidebar/theme-toggle";
 import type { ReactNode } from "react";
 
 type Item = {
@@ -59,6 +61,8 @@ export function MainSidebar() {
             </Link>
           );
         })}
+        <BrandCustomizer />
+        <ThemeToggle />
       </nav>
     </aside>
   );
