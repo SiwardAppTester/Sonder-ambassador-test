@@ -66,7 +66,7 @@ export function Drawer({
             transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "absolute inset-y-0 right-0 flex h-full flex-col rounded-l-2xl border-l border-border/40 bg-card surface-floating",
+              "absolute inset-y-0 right-0 flex h-full flex-col rounded-l-2xl border-l border-border/40 surface-glass-strong surface-floating",
               widthClass,
             )}
           >

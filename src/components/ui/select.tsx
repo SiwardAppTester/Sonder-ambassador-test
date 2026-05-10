@@ -63,9 +63,9 @@ export function Select<T extends string>({
         aria-expanded={open}
         aria-label={ariaLabel}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-lg border border-border/40 bg-muted/40 text-foreground transition-colors",
+          "field-fill inline-flex items-center gap-1.5 rounded-lg border border-border/40 text-foreground transition-colors",
           "hover:border-border/70",
-          "focus-visible:outline-none focus-visible:border-brand/60 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-brand/20",
+          "focus-visible:outline-none focus-visible:border-brand/60 focus-visible:ring-2 focus-visible:ring-brand/20",
           heightClass,
         )}
       >
@@ -82,7 +82,7 @@ export function Select<T extends string>({
         <div
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute left-0 top-full z-30 mt-1.5 min-w-full overflow-hidden rounded-xl border border-border/40 bg-card p-1 surface-floating"
+          className="absolute left-0 top-full z-30 mt-1.5 min-w-full overflow-hidden rounded-xl border border-border/40 surface-glass-strong p-1 surface-floating"
         >
           <div className="max-h-72 overflow-y-auto">
             {options.map((opt) => {

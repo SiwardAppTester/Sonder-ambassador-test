@@ -1,12 +1,15 @@
 /**
  * Money + number formatters. Currency comes from the org settings.
  *
- * `formatMoney` accepts negative numbers (campaigns can technically run
+ * Numbers use European separators: `.` for thousands, `,` for decimals
+ * (e.g. €1.430,50). `formatMoney` accepts negatives (campaigns can run
  * money_saved < 0 if `platform_share_cost > cpv * views/share`).
  */
 
-const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
-const full = new Intl.NumberFormat("en-US");
+const LOCALE = "nl-NL";
+
+const compact = new Intl.NumberFormat(LOCALE, { notation: "compact", maximumFractionDigits: 1 });
+const full = new Intl.NumberFormat(LOCALE);
 
 export function formatCount(n: number): string {
   return Math.abs(n) >= 10_000 ? compact.format(n) : full.format(n);
@@ -22,7 +25,7 @@ export function formatMoney(amount: number, currency = "EUR"): string {
   const key = `${currency}-compact`;
   let f = moneyFormatters.get(key);
   if (!f) {
-    f = new Intl.NumberFormat("en-US", {
+    f = new Intl.NumberFormat(LOCALE, {
       style: "currency",
       currency,
       maximumFractionDigits: 0,

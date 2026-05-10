@@ -62,7 +62,7 @@ export function Dialog({
             transition={{ duration: 0.18, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "relative w-full overflow-hidden rounded-xl border border-border/60 bg-card surface-floating",
+              "relative w-full overflow-hidden rounded-xl border border-border/60 surface-glass-strong surface-floating",
               widthClass,
             )}
           >

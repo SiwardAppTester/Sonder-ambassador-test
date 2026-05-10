@@ -133,6 +133,25 @@
     -webkit-backdrop-filter: blur(18px) saturate(120%);
   }
 
+  /* Form-field fill — tuned to look like a clean recessed well inside
+     the new glass drawers/dialogs/cards. Resting fill is a slight dark
+     tint; focused fill deepens (dark) or brightens to white (light) so
+     the active field is visually unambiguous. */
+  .field-fill {
+    background-color: rgba(0, 0, 0, 0.22);
+  }
+  .field-fill:focus-visible,
+  .field-fill:focus {
+    background-color: rgba(0, 0, 0, 0.36);
+  }
+  .light .field-fill {
+    background-color: rgba(0, 0, 0, 0.035);
+  }
+  .light .field-fill:focus-visible,
+  .light .field-fill:focus {
+    background-color: #ffffff;
+  }
+
   /* ── Light-mode overrides for the surfaces above ─────────────────
      The base utilities are tuned for the dark canvas; on white we
      need to flip the tints and soften the shadows so cards don't

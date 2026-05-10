@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
  * border bump.
  */
 const baseField =
-  "flex w-full rounded-lg border border-border/40 bg-muted/40 text-foreground placeholder:text-muted-foreground/70 transition-[background-color,border-color,box-shadow] " +
+  "field-fill flex w-full rounded-lg border border-border/40 text-foreground placeholder:text-muted-foreground/70 transition-[background-color,border-color,box-shadow] " +
   "hover:border-border/70 " +
-  "focus-visible:outline-none focus-visible:border-brand/60 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-brand/20 " +
+  "focus-visible:outline-none focus-visible:border-brand/60 focus-visible:ring-2 focus-visible:ring-brand/20 " +
   "disabled:cursor-not-allowed disabled:opacity-50";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(

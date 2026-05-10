@@ -109,7 +109,7 @@ export function NewCampaignDrawer({
 
             <div className="space-y-2">
               <Label>Campaign dates</Label>
-              <div className="relative rounded-xl border border-border/40 bg-muted/30 p-3">
+              <div className="field-fill relative rounded-xl border border-border/40 p-3">
                 <DayPicker
                   mode="range"
                   selected={range}

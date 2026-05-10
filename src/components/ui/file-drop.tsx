@@ -138,7 +138,7 @@ export function FileDrop({
           "flex aspect-[4/5] cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed transition-colors",
           dragOver
             ? "border-brand bg-brand/5"
-            : "border-border/70 bg-background/30 hover:border-border hover:bg-muted/40",
+            : "field-fill border-border/70 hover:border-border",
         )}
       >
         <UploadCloud className="size-7 text-muted-foreground" />

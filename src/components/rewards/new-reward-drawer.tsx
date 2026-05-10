@@ -141,7 +141,7 @@ export function NewRewardDrawer({
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-4 rounded-xl border border-border/40 bg-muted/30 px-4 py-3">
+            <div className="field-fill flex items-center justify-between gap-4 rounded-xl border border-border/40 px-4 py-3">
               <div>
                 <Label>Active</Label>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">

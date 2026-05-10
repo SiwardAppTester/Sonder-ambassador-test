@@ -48,8 +48,8 @@ export function HashtagInput({
   return (
     <div
       className={cn(
-        "flex min-h-10 flex-wrap items-center gap-1.5 rounded-lg border border-border/40 bg-muted/40 px-2.5 py-1.5 transition-colors",
-        "hover:border-border/70 focus-within:border-brand/60 focus-within:bg-background focus-within:ring-2 focus-within:ring-brand/20",
+        "field-fill flex min-h-10 flex-wrap items-center gap-1.5 rounded-lg border border-border/40 px-2.5 py-1.5 transition-colors",
+        "hover:border-border/70 focus-within:border-brand/60 focus-within:ring-2 focus-within:ring-brand/20",
       )}
     >
       {value.map((tag, i) => (

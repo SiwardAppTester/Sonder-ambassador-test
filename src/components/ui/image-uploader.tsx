@@ -95,7 +95,7 @@ export function ImageUploader({
           aspectClass,
           dragOver
             ? "border-brand/60 bg-brand/5"
-            : "border-border/50 bg-muted/30 hover:border-border/80 hover:bg-muted/50",
+            : "field-fill border-border/50 hover:border-border/80",
           className,
         )}
       >
