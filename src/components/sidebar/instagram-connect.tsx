@@ -1,30 +1,57 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Instagram, RefreshCw, ExternalLink, AlertCircle, CheckCircle2 } from "lucide-react";
-import { Drawer, DrawerBody, DrawerHeader } from "@/components/ui/drawer";
+import { Dialog, DialogBody, DialogHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import type { AmbassadorWithConnection } from "@/app/api/instagram/ambassadors/route";
 
 /**
- * Sidebar trigger + drawer for the Instagram Graph API test connection.
+ * Sidebar trigger + centered modal for the Instagram Graph API test
+ * connection.
+ *
+ * Why the portal: the sidebar uses `backdrop-filter` (surface-glass-strong),
+ * which makes it the containing block for any descendant `position: fixed`
+ * element. Without a portal, the Dialog's full-viewport backdrop would be
+ * clipped to the 72px sidebar. Same fix BrandCustomizer uses next door.
  *
  * Flow:
- *   1. User opens drawer, picks an ambassador.
+ *   1. Pick an ambassador in the modal.
  *   2. "Connect Instagram" → /api/instagram/connect → Facebook OAuth → callback
  *   3. After callback we land back on the dashboard with ?ig=connected|error;
- *      the drawer reads that and shows a status banner.
- *   4. For a connected ambassador, "Sync now" calls the sync route and
- *      refreshes the list to show updated counts / timestamps.
+ *      the panel reads that and shows a status banner.
+ *   4. For a connected ambassador, "Sync now" pulls fresh posts.
  *
- * This UI lives in the sidebar for *testing* purposes — the production
- * flow will move to the mobile app, where the OAuth redirect becomes a
- * deep link but the callback + sync routes stay the same.
+ * The connect button lives in the sidebar for *testing*; in production it
+ * moves to the mobile app, but the callback + sync routes stay the same.
  */
 export function InstagramConnect() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const dialog = (
+    <Dialog
+      open={open}
+      onClose={() => setOpen(false)}
+      ariaLabel="Instagram connections"
+      size="md"
+    >
+      <DialogHeader
+        title="Instagram connections"
+        description="Test the Graph API integration. Pick an ambassador, sign in with Instagram, then sync their posts. (This panel is for testing — in production the connect flow lives in the mobile app.)"
+      />
+      <DialogBody>
+        <ConnectionsPanel />
+      </DialogBody>
+    </Dialog>
+  );
 
   return (
     <>
@@ -36,20 +63,7 @@ export function InstagramConnect() {
       >
         <Instagram className="size-[18px]" />
       </button>
-      <Drawer
-        open={open}
-        onClose={() => setOpen(false)}
-        ariaLabel="Instagram connections"
-        size="md"
-      >
-        <DrawerHeader
-          title="Instagram connections"
-          description="Test the Graph API integration. Pick an ambassador, sign in with Instagram, then sync their posts. (This panel is for testing — in production the connect flow lives in the mobile app.)"
-        />
-        <DrawerBody>
-          <ConnectionsPanel />
-        </DrawerBody>
-      </Drawer>
+      {mounted ? createPortal(dialog, document.body) : null}
     </>
   );
 }
