@@ -1,19 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
+  Bookmark,
   CheckCircle2,
+  Eye,
   ExternalLink,
   Heart,
   Image as ImageIcon,
   Info,
   Instagram,
   Loader2,
+  Lock,
   MessageCircle,
   Play,
   RefreshCw,
+  Repeat2,
+  RotateCw,
+  Send,
   Users,
 } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
@@ -531,63 +538,204 @@ function PostsGrid({
 }
 
 function PostCard({ post }: { post: InstagramPostRow }) {
-  const reach = (post.insights.reach as number | undefined) ?? null;
+  const [flipped, setFlipped] = useState(false);
   const isVideo = post.mediaType === "VIDEO" || post.mediaType === "REEL";
   const thumb = post.thumbnailUrl ?? post.mediaUrl;
-  const date = new Date(post.postedAt).toLocaleDateString();
+
+  // Pull every metric we currently know about. Missing ones stay null so
+  // the back of the card renders "—" with the locked-scope hint.
+  const m = post.insights ?? {};
+  const reach = numberOrNull(m.reach);
+  const impressions = numberOrNull(m.impressions);
+  const views = numberOrNull(m.video_views ?? m.plays);
+  const shares = numberOrNull(m.shares);
+  const saves = numberOrNull(m.saved);
 
   return (
-    <a
-      href={post.permalink ?? "#"}
-      target="_blank"
-      rel="noreferrer"
-      className="group flex flex-col overflow-hidden rounded-xl border border-border/40 bg-card/50 transition-colors hover:border-border/70"
-    >
-      <div className="relative aspect-square overflow-hidden bg-muted">
-        {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumb}
-            alt={post.caption?.slice(0, 60) ?? "Instagram post"}
-            referrerPolicy="no-referrer"
-            className="size-full object-cover transition-transform group-hover:scale-[1.02]"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex size-full items-center justify-center text-muted-foreground">
-            <ImageIcon className="size-8" />
+    <div className="[perspective:1200px]">
+      <button
+        type="button"
+        onClick={() => setFlipped((v) => !v)}
+        aria-pressed={flipped}
+        aria-label={flipped ? "Show post image" : "Show post details"}
+        className="group relative block aspect-square w-full overflow-visible rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+      >
+        <motion.div
+          className="relative size-full"
+          style={{ transformStyle: "preserve-3d" }}
+          animate={{ rotateY: flipped ? 180 : 0 }}
+          transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
+        >
+          {/* FRONT */}
+          <div
+            className="absolute inset-0 overflow-hidden rounded-xl border border-border/40 bg-card/50"
+            style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+          >
+            <div className="relative size-full bg-muted">
+              {thumb ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={thumb}
+                  alt={post.caption?.slice(0, 60) ?? "Instagram post"}
+                  referrerPolicy="no-referrer"
+                  className="size-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex size-full items-center justify-center text-muted-foreground">
+                  <ImageIcon className="size-8" />
+                </div>
+              )}
+              {isVideo ? (
+                <div className="absolute right-2 top-2 rounded-full bg-black/55 p-1 text-white backdrop-blur-sm">
+                  <Play className="size-3.5" fill="currentColor" />
+                </div>
+              ) : null}
+              {/* Bottom overlay: caption + quick stats */}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/55 to-transparent p-2.5 text-white">
+                {post.caption ? (
+                  <p className="mb-1 line-clamp-2 text-[11px] leading-snug">{post.caption}</p>
+                ) : null}
+                <div className="flex items-center gap-3 text-[11px]">
+                  <span className="inline-flex items-center gap-1">
+                    <Heart className="size-3" /> {formatCount(post.likeCount)}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <MessageCircle className="size-3" /> {formatCount(post.commentsCount)}
+                  </span>
+                  <span className="ml-auto inline-flex items-center gap-1 opacity-70">
+                    <RotateCw className="size-3" /> Details
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
-        {isVideo ? (
-          <div className="absolute right-2 top-2 rounded-full bg-black/55 p-1 text-white backdrop-blur-sm">
-            <Play className="size-3.5" fill="currentColor" />
-          </div>
-        ) : null}
-      </div>
 
-      <div className="flex flex-col gap-1.5 p-2.5 text-xs">
-        {post.caption ? (
-          <p className="line-clamp-2 text-foreground">{post.caption}</p>
-        ) : (
-          <p className="italic text-muted-foreground">No caption</p>
-        )}
-        <div className="flex items-center justify-between gap-2 text-muted-foreground">
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex items-center gap-1">
-              <Heart className="size-3" /> {formatCount(post.likeCount)}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <MessageCircle className="size-3" /> {formatCount(post.commentsCount)}
-            </span>
-            <span className="inline-flex items-center gap-1" title="Reach (requires insights scope)">
-              <Users className="size-3" /> {reach !== null ? formatCount(reach) : "—"}
-            </span>
+          {/* BACK */}
+          <div
+            className="absolute inset-0 flex flex-col overflow-hidden rounded-xl border border-border/40 bg-card/95 p-3"
+            style={{
+              backfaceVisibility: "hidden",
+              WebkitBackfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+            }}
+          >
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  {post.mediaType.replace("_", " ").toLowerCase()}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {new Date(post.postedAt).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
+              <RotateCw className="size-3 shrink-0 text-muted-foreground" />
+            </div>
+
+            <div className="grid flex-1 grid-cols-2 gap-1.5 text-[11px]">
+              <MetricChip
+                icon={<Eye className="size-3" />}
+                label="Views"
+                value={views}
+                requiresInsights={!isVideo ? "n/a" : true}
+              />
+              <MetricChip
+                icon={<Users className="size-3" />}
+                label="Reach"
+                value={reach}
+                requiresInsights
+              />
+              <MetricChip
+                icon={<Send className="size-3" />}
+                label="Impressions"
+                value={impressions}
+                requiresInsights={isVideo ? "n/a" : true}
+              />
+              <MetricChip
+                icon={<Repeat2 className="size-3" />}
+                label="Shares"
+                value={shares}
+                requiresInsights={post.mediaType === "IMAGE" ? "n/a" : true}
+              />
+              <MetricChip
+                icon={<Heart className="size-3" />}
+                label="Likes"
+                value={post.likeCount}
+              />
+              <MetricChip
+                icon={<MessageCircle className="size-3" />}
+                label="Comments"
+                value={post.commentsCount}
+              />
+              <MetricChip
+                icon={<Bookmark className="size-3" />}
+                label="Saves"
+                value={saves}
+                requiresInsights
+              />
+              <a
+                href={post.permalink ?? "#"}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center justify-center gap-1 rounded-md border border-border/50 bg-muted/30 px-2 py-1.5 text-foreground transition-colors hover:bg-muted/60"
+                aria-label="Open on Instagram"
+              >
+                <ExternalLink className="size-3" />
+                Open
+              </a>
+            </div>
           </div>
-          <span className="shrink-0 text-[10px]">{date}</span>
-        </div>
-      </div>
-    </a>
+        </motion.div>
+      </button>
+    </div>
   );
+}
+
+function MetricChip({
+  icon,
+  label,
+  value,
+  requiresInsights,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number | null;
+  /** true = needs insights scope; "n/a" = not applicable to this media type. */
+  requiresInsights?: boolean | "n/a";
+}) {
+  const isNA = requiresInsights === "n/a";
+  const isLocked = requiresInsights === true && value === null;
+
+  return (
+    <div
+      className="flex flex-col justify-between rounded-md border border-border/40 bg-background/40 p-1.5"
+      title={
+        isNA
+          ? `${label} not tracked for this post type`
+          : isLocked
+            ? `${label} requires the instagram_manage_insights scope`
+            : undefined
+      }
+    >
+      <div className="flex items-center gap-1 text-muted-foreground">
+        {icon}
+        <span>{label}</span>
+        {isLocked ? <Lock className="ml-auto size-2.5 opacity-50" /> : null}
+      </div>
+      <div className="text-right text-sm font-semibold text-foreground">
+        {isNA ? <span className="text-xs text-muted-foreground/60">—</span> : value === null ? <span className="text-muted-foreground/60">—</span> : formatCount(value)}
+      </div>
+    </div>
+  );
+}
+
+function numberOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
 function ReachHint() {

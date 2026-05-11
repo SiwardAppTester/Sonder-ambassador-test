@@ -235,9 +235,13 @@ export async function getMediaInsights(
   mediaType: IgMedia["media_type"],
 ): Promise<Record<string, number>> {
   const isVideoLike = mediaType === "VIDEO" || mediaType === "REELS";
+  // Image media doesn't support `shares` or `video_views`; asking for them
+  // 400s on the whole call. Per-type metric set keeps each call valid.
   const metrics = isVideoLike
-    ? ["reach", "total_interactions", "plays", "saved"]
-    : ["reach", "impressions", "engagement", "saved"];
+    ? ["reach", "total_interactions", "plays", "video_views", "shares", "saved"]
+    : mediaType === "CAROUSEL_ALBUM"
+      ? ["reach", "impressions", "engagement", "video_views", "shares", "saved"]
+      : ["reach", "impressions", "engagement", "saved"];
 
   const params = new URLSearchParams({
     access_token: pageAccessToken,
