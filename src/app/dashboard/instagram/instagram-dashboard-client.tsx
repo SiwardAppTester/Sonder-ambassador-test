@@ -7,6 +7,8 @@ import {
   AlertCircle,
   Bookmark,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   ExternalLink,
   Heart,
@@ -15,10 +17,12 @@ import {
   Instagram,
   Loader2,
   Lock,
+  LogOut,
   MessageCircle,
   Play,
   RefreshCw,
   Repeat2,
+  Reply,
   RotateCw,
   Send,
   Users,
@@ -29,6 +33,7 @@ import { Select } from "@/components/ui/select";
 import { formatCount } from "@/lib/format";
 import type { AmbassadorWithConnection } from "@/app/api/instagram/ambassadors/route";
 import type { InstagramPostRow } from "@/app/api/instagram/posts/route";
+import type { InstagramStoryRow } from "@/app/api/instagram/stories/route";
 
 /**
  * Top-level Instagram page. Handles:
@@ -46,6 +51,7 @@ export function InstagramDashboardClient() {
   const [ambassadors, setAmbassadors] = useState<AmbassadorWithConnection[] | null>(null);
   const [selectedId, setSelectedId] = useState<string>("");
   const [posts, setPosts] = useState<InstagramPostRow[] | null>(null);
+  const [stories, setStories] = useState<InstagramStoryRow[] | null>(null);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -68,16 +74,28 @@ export function InstagramDashboardClient() {
   const loadPosts = useCallback(async (ambassadorId: string) => {
     setLoadingPosts(true);
     try {
-      const res = await fetch(
-        `/api/instagram/posts?ambassadorId=${encodeURIComponent(ambassadorId)}`,
-        { cache: "no-store" },
-      );
-      if (!res.ok) throw new Error(`Failed to load posts (${res.status})`);
-      const json = (await res.json()) as { posts: InstagramPostRow[] };
-      setPosts(json.posts);
+      // Posts + stories in parallel — they're independent.
+      const [postsRes, storiesRes] = await Promise.all([
+        fetch(`/api/instagram/posts?ambassadorId=${encodeURIComponent(ambassadorId)}`, {
+          cache: "no-store",
+        }),
+        fetch(`/api/instagram/stories?ambassadorId=${encodeURIComponent(ambassadorId)}`, {
+          cache: "no-store",
+        }),
+      ]);
+      if (!postsRes.ok) throw new Error(`Failed to load posts (${postsRes.status})`);
+      const postsJson = (await postsRes.json()) as { posts: InstagramPostRow[] };
+      setPosts(postsJson.posts);
+      if (storiesRes.ok) {
+        const storiesJson = (await storiesRes.json()) as { stories: InstagramStoryRow[] };
+        setStories(storiesJson.stories);
+      } else {
+        setStories([]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load posts");
       setPosts([]);
+      setStories([]);
     } finally {
       setLoadingPosts(false);
     }
@@ -268,6 +286,7 @@ export function InstagramDashboardClient() {
             <ConnectedView
               ambassador={selected}
               posts={posts}
+              stories={stories}
               loadingPosts={loadingPosts}
               syncing={syncing}
               disconnecting={disconnecting}
@@ -314,6 +333,7 @@ function NotConnectedView({
 function ConnectedView({
   ambassador,
   posts,
+  stories,
   loadingPosts,
   syncing,
   disconnecting,
@@ -322,6 +342,7 @@ function ConnectedView({
 }: {
   ambassador: AmbassadorWithConnection;
   posts: InstagramPostRow[] | null;
+  stories: InstagramStoryRow[] | null;
   loadingPosts: boolean;
   syncing: boolean;
   disconnecting: boolean;
@@ -358,6 +379,8 @@ function ConnectedView({
         hasInsightsScope={hasInsightsScope}
         lastSyncError={c.lastSyncError}
       />
+
+      <StoriesSection stories={stories} loading={loadingPosts} />
 
       <PostsGrid posts={posts} loading={loadingPosts} />
     </div>
@@ -838,6 +861,162 @@ function FlashBanner({
         aria-label="Dismiss"
       >
         ×
+      </button>
+    </div>
+  );
+}
+
+function StoriesSection({
+  stories,
+  loading,
+}: {
+  stories: InstagramStoryRow[] | null;
+  loading: boolean;
+}) {
+  if (loading || stories === null) return null;
+
+  // Stories are ephemeral on Meta's side — empty is the common case.
+  // Render a compact empty state so the section always exists at the same
+  // place in the layout (otherwise the page layout shifts when stories
+  // appear/disappear between syncs).
+  return (
+    <section>
+      <header className="mb-3 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Stories ({stories.length})
+          </h2>
+          <p className="text-[11px] text-muted-foreground">
+            Last 7 days. Instagram deletes stories from the Graph API after 24h, so
+            anything older than that is what we synced before it expired.
+          </p>
+        </div>
+      </header>
+
+      {stories.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/70 bg-card/40 px-4 py-8 text-center">
+          <p className="text-xs text-muted-foreground">
+            No active or recently-synced stories. Stories appear here after a Sync if
+            this account currently has any live.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {stories.map((s) => (
+            <StoryCard key={s.id} story={s} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StoryCard({ story }: { story: InstagramStoryRow }) {
+  const [flipped, setFlipped] = useState(false);
+  const m = story.insights ?? {};
+  const reach = numberOrNull(m.reach);
+  const views = numberOrNull(m.views ?? m.impressions);
+  const replies = numberOrNull(m.replies);
+  const tapsForward = numberOrNull(m.taps_forward);
+  const tapsBack = numberOrNull(m.taps_back);
+  const exits = numberOrNull(m.exits);
+  const isVideo = story.mediaType === "VIDEO";
+  const thumb = story.thumbnailUrl ?? story.mediaUrl;
+
+  return (
+    <div className="[perspective:1200px]">
+      <button
+        type="button"
+        onClick={() => setFlipped((v) => !v)}
+        aria-pressed={flipped}
+        className="group relative block aspect-[9/16] w-full overflow-visible rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+      >
+        <motion.div
+          className="relative size-full"
+          style={{ transformStyle: "preserve-3d" }}
+          initial={false}
+          animate={{ rotateY: flipped ? 180 : 0 }}
+          transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
+        >
+          {/* FRONT */}
+          <div
+            className="absolute inset-0 overflow-hidden rounded-xl border border-border/40 bg-card/50"
+            style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+          >
+            <div className="relative size-full bg-muted">
+              {thumb ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={thumb}
+                  alt="Story"
+                  referrerPolicy="no-referrer"
+                  className="size-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex size-full items-center justify-center text-muted-foreground">
+                  <ImageIcon className="size-8" />
+                </div>
+              )}
+              {isVideo ? (
+                <div className="absolute right-2 top-2 rounded-full bg-black/55 p-1 text-white backdrop-blur-sm">
+                  <Play className="size-3.5" fill="currentColor" />
+                </div>
+              ) : null}
+              <div className="absolute left-2 top-2">
+                <span
+                  className={
+                    story.isActive
+                      ? "rounded-full bg-status-success/90 px-1.5 py-0.5 text-[10px] font-medium uppercase text-white"
+                      : "rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-medium uppercase text-white/80 backdrop-blur-sm"
+                  }
+                >
+                  {story.isActive ? "Live" : "Expired"}
+                </span>
+              </div>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-2 text-white">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="inline-flex items-center gap-1">
+                    <Eye className="size-3" /> {views !== null ? formatCount(views) : "—"}
+                  </span>
+                  <span className="inline-flex items-center gap-1 opacity-70">
+                    <RotateCw className="size-3" /> Details
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* BACK */}
+          <div
+            className="absolute inset-0 flex flex-col overflow-hidden rounded-xl border border-border/40 bg-card/95 p-2.5"
+            style={{
+              backfaceVisibility: "hidden",
+              WebkitBackfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+            }}
+          >
+            <div className="mb-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Story</p>
+              <p className="text-[10px] text-muted-foreground">
+                {new Date(story.postedAt).toLocaleString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
+            <div className="grid flex-1 grid-cols-2 gap-1.5 text-[11px]">
+              <MetricChip icon={<Eye className="size-3" />} label="Views" value={views} requiresInsights />
+              <MetricChip icon={<Users className="size-3" />} label="Reach" value={reach} requiresInsights />
+              <MetricChip icon={<Reply className="size-3" />} label="Replies" value={replies} requiresInsights />
+              <MetricChip icon={<LogOut className="size-3" />} label="Exits" value={exits} requiresInsights />
+              <MetricChip icon={<ChevronRight className="size-3" />} label="Tap fwd" value={tapsForward} requiresInsights />
+              <MetricChip icon={<ChevronLeft className="size-3" />} label="Tap back" value={tapsBack} requiresInsights />
+            </div>
+          </div>
+        </motion.div>
       </button>
     </div>
   );

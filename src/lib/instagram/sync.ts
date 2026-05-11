@@ -8,8 +8,11 @@ import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import {
   getInstagramUser,
   getMediaInsights,
+  getStoryInsights,
   listInstagramMedia,
+  listInstagramStories,
   type IgMedia,
+  type IgStory,
 } from "@/lib/instagram/graph-api";
 
 type ConnectionRow = {
@@ -24,6 +27,8 @@ export type SyncResult = {
   connectionId: string;
   postsFetched: number;
   postsUpserted: number;
+  storiesFetched: number;
+  storiesUpserted: number;
   syncedAt: string;
 };
 
@@ -49,18 +54,24 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
     throw new Error(`Connection not found or already disconnected: ${connectionId}`);
   }
 
-  // Refresh profile snapshot (follower count etc.) in parallel with media.
-  // Profile fetch failure is non-fatal — we still want media even if the
-  // user endpoint is rate-limited.
+  // Refresh profile, media, and active stories in parallel. Profile +
+  // stories failures are non-fatal (no profile = stale display; no stories
+  // is the common case — most accounts don't have any active). Media
+  // failure IS fatal because it's the core of what we sync.
   let media: IgMedia[];
+  let stories: IgStory[] = [];
   let profile: Awaited<ReturnType<typeof getInstagramUser>> | null = null;
   try {
-    [media, profile] = await Promise.all([
+    [media, stories, profile] = await Promise.all([
       listInstagramMedia(
         connection.ig_business_account_id,
         connection.page_access_token,
         25,
       ),
+      listInstagramStories(
+        connection.ig_business_account_id,
+        connection.page_access_token,
+      ).catch(() => [] as IgStory[]),
       getInstagramUser(
         connection.ig_business_account_id,
         connection.page_access_token,
@@ -117,6 +128,40 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
     }
   }
 
+  // Stories — fetch insights per active story, then upsert. We deliberately
+  // don't delete expired rows; once a story is in our DB we keep it.
+  const storyRows = await Promise.all(
+    stories.map(async (s) => {
+      const result = await getStoryInsights(s.id, connection.page_access_token);
+      const postedAt = new Date(s.timestamp);
+      const expiresAt = new Date(postedAt.getTime() + 24 * 60 * 60 * 1000);
+      return {
+        organization_id: connection.organization_id,
+        ambassador_id: connection.ambassador_id,
+        connection_id: connection.id,
+        ig_media_id: s.id,
+        media_type: s.media_type,
+        permalink: s.permalink ?? null,
+        media_url: s.media_url ?? null,
+        thumbnail_url: s.thumbnail_url ?? null,
+        insights: result.data,
+        posted_at: postedAt.toISOString(),
+        expires_at: expiresAt.toISOString(),
+        last_synced_at: now,
+      };
+    }),
+  );
+
+  if (storyRows.length > 0) {
+    const { error: storyUpsertErr } = await service
+      .from("instagram_stories")
+      .upsert(storyRows, { onConflict: "connection_id,ig_media_id" });
+    if (storyUpsertErr) {
+      // Log but don't fail the whole sync — stories are best-effort.
+      console.error("Failed to upsert stories:", storyUpsertErr.message);
+    }
+  }
+
   const connectionUpdate: Record<string, unknown> = {
     last_synced_at: now,
     last_sync_error: firstInsightsError
@@ -140,6 +185,8 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
     connectionId: connection.id,
     postsFetched: media.length,
     postsUpserted: rows.length,
+    storiesFetched: stories.length,
+    storiesUpserted: storyRows.length,
     syncedAt: now,
   };
 }

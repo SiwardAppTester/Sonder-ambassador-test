@@ -238,6 +238,89 @@ type IgInsightsResponse = {
   data: Array<{ name: string; values: Array<{ value: number }> }>;
 };
 
+export type IgStory = {
+  id: string;
+  media_type: "IMAGE" | "VIDEO";
+  media_url?: string;
+  thumbnail_url?: string;
+  permalink?: string;
+  timestamp: string;
+};
+
+type IgStoriesResponse = {
+  data: IgStory[];
+};
+
+/**
+ * Fetch the IG Business account's currently-active stories. Stories disappear
+ * from this endpoint 24h after posting; once gone, they cannot be retrieved.
+ * Set up a `story_insights` webhook for permanent history.
+ */
+export async function listInstagramStories(
+  igUserId: string,
+  pageAccessToken: string,
+): Promise<IgStory[]> {
+  const params = new URLSearchParams({
+    access_token: pageAccessToken,
+    fields: "id,media_type,media_url,thumbnail_url,permalink,timestamp",
+  });
+  const json = await graphFetch<IgStoriesResponse>(
+    `${GRAPH_BASE}/${igUserId}/stories?${params.toString()}`,
+  );
+  return json.data;
+}
+
+/**
+ * Story-specific insights. Different metric set than feed media:
+ * - reach: unique accounts that saw the story
+ * - replies: DM replies to the story
+ * - taps_forward: skipped to next story
+ * - taps_back: went to previous story
+ * - exits: closed stories from this story
+ * - views: total times seen (replaced impressions in v22)
+ */
+export async function getStoryInsights(
+  storyMediaId: string,
+  pageAccessToken: string,
+): Promise<InsightsResult> {
+  const metrics = ["reach", "replies", "taps_forward", "taps_back", "exits", "views"];
+  const params = new URLSearchParams({
+    access_token: pageAccessToken,
+    metric: metrics.join(","),
+  });
+
+  try {
+    const json = await graphFetch<IgInsightsResponse>(
+      `${GRAPH_BASE}/${storyMediaId}/insights?${params.toString()}`,
+    );
+    const out: Record<string, number> = {};
+    for (const row of json.data) out[row.name] = row.values?.[0]?.value ?? 0;
+    return { data: out };
+  } catch (bundleErr) {
+    // Fall back to per-metric calls so unsupported ones don't kill the rest.
+    const results = await Promise.all(
+      metrics.map((m) => fetchOneMetric(storyMediaId, pageAccessToken, m)),
+    );
+    const merged: Record<string, number> = {};
+    const failed: string[] = [];
+    for (let i = 0; i < metrics.length; i++) {
+      const r = results[i];
+      if (r) merged[r.name] = r.value;
+      else failed.push(metrics[i]);
+    }
+    if (Object.keys(merged).length > 0) {
+      return {
+        data: merged,
+        error: failed.length > 0 ? `unsupported story metrics: ${failed.join(", ")}` : undefined,
+      };
+    }
+    return {
+      data: {},
+      error: bundleErr instanceof Error ? bundleErr.message : "story insights call failed",
+    };
+  }
+}
+
 /**
  * Fetch insights for one media item. The metric set differs by media_type:
  * Reels and Videos expose `plays`/`reach`/`total_interactions`, while images
