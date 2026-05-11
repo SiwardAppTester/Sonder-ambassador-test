@@ -563,6 +563,11 @@ function PostCard({ post }: { post: InstagramPostRow }) {
         <motion.div
           className="relative size-full"
           style={{ transformStyle: "preserve-3d" }}
+          // initial={false} skips the mount animation. framer-motion injects
+          // an inline transform on mount that often differs between SSR and
+          // client → React #418 hydration error. Skipping init keeps the
+          // server output and the first client render byte-identical.
+          initial={false}
           animate={{ rotateY: flipped ? 180 : 0 }}
           transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
         >
