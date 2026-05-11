@@ -581,7 +581,7 @@ function PostsGrid({
         </h2>
         <ReachHint />
       </header>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {posts.map((p) => (
           <PostCard key={p.id} post={p} />
         ))}
@@ -699,7 +699,7 @@ function PostCard({ post }: { post: InstagramPostRow }) {
               <RotateCw className="size-3 shrink-0 text-muted-foreground" />
             </div>
 
-            <div className="grid flex-1 grid-cols-2 gap-1.5 text-[11px]">
+            <div className="grid flex-1 grid-cols-2 gap-2 text-xs">
               <MetricChip
                 icon={<Eye className="size-3" />}
                 label="Views"
@@ -776,7 +776,7 @@ function MetricChip({
 
   return (
     <div
-      className="flex flex-col justify-between rounded-md border border-border/40 bg-background/40 p-1.5"
+      className="flex flex-col justify-between gap-1 rounded-md border border-border/40 bg-background/40 p-2"
       title={
         isNA
           ? `${label} not tracked for this post type`
