@@ -17,9 +17,14 @@
 const GRAPH_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
+// `instagram_manage_insights` is intentionally NOT requested here. It's an
+// advanced permission that's locked unless the Meta app's Use Case explicitly
+// covers it, and OAuth fails outright if you ask for a scope you don't have
+// access to. Without it we lose reach/impressions/saves; basic counts
+// (likes, comments) still come back via media fields. Add it back once the
+// permission is granted (Use Case change OR App Review approval).
 export const REQUIRED_SCOPES = [
   "instagram_basic",
-  "instagram_manage_insights",
   "pages_show_list",
   "pages_read_engagement",
   "business_management",
