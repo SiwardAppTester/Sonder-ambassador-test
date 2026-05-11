@@ -333,6 +333,7 @@ function ConnectedView({
   const tokenExpires = c.tokenExpiresAt
     ? new Date(c.tokenExpiresAt).toLocaleDateString()
     : "Unknown";
+  const hasInsightsScope = c.scopes.includes("instagram_manage_insights");
 
   return (
     <div className="space-y-6">
@@ -352,16 +353,68 @@ function ConnectedView({
         onDisconnect={onDisconnect}
       />
 
-      {c.lastSyncError ? (
-        <FlashBanner
-          kind="error"
-          message={`Last sync error: ${c.lastSyncError}`}
-          onDismiss={() => {}}
-        />
-      ) : null}
+      <PermissionStatus
+        scopes={c.scopes}
+        hasInsightsScope={hasInsightsScope}
+        lastSyncError={c.lastSyncError}
+      />
 
       <PostsGrid posts={posts} loading={loadingPosts} />
     </div>
+  );
+}
+
+function PermissionStatus({
+  scopes,
+  hasInsightsScope,
+  lastSyncError,
+}: {
+  scopes: string[];
+  hasInsightsScope: boolean;
+  lastSyncError: string | null;
+}) {
+  return (
+    <section className="rounded-xl border border-border/40 bg-card/40 p-4">
+      <header className="mb-2 flex items-center gap-2">
+        <Lock className="size-3.5 text-muted-foreground" />
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Token permissions
+        </h3>
+      </header>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {scopes.length === 0 ? (
+          <span className="text-xs text-muted-foreground">
+            No scope info on this connection (reconnect to populate).
+          </span>
+        ) : (
+          scopes.map((s) => (
+            <span
+              key={s}
+              className={
+                s === "instagram_manage_insights"
+                  ? "rounded-md border border-status-success/30 bg-status-success/10 px-2 py-0.5 text-[11px] font-medium text-status-success"
+                  : "rounded-md border border-border/50 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground"
+              }
+            >
+              {s}
+            </span>
+          ))
+        )}
+      </div>
+      {!hasInsightsScope && scopes.length > 0 ? (
+        <p className="mt-2.5 text-xs text-status-danger">
+          <strong>instagram_manage_insights</strong> is missing from this token. Views/Reach/
+          Impressions/Shares/Saves cannot be fetched. Click <em>Reconnect</em> above and approve
+          the additional permission. If Meta&apos;s consent screen doesn&apos;t list it, the
+          permission isn&apos;t enabled on the Meta app yet.
+        </p>
+      ) : null}
+      {lastSyncError ? (
+        <p className="mt-2.5 text-xs text-status-danger">
+          <strong>Last sync diagnostic:</strong> {lastSyncError}
+        </p>
+      ) : null}
+    </section>
   );
 }
 

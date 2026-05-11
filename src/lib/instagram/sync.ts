@@ -77,11 +77,14 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
 
   const now = new Date().toISOString();
 
-  // Fetch insights for each post in parallel. Each call already swallows
-  // its own errors, so a flaky metric on one post doesn't kill the batch.
+  // Fetch insights for each post in parallel. Capture the first error we see
+  // so the UI can surface it (otherwise empty insights look like silent
+  // success and the user has no idea what's wrong).
+  let firstInsightsError: string | null = null;
   const rows = await Promise.all(
     media.map(async (m) => {
-      const insights = await getMediaInsights(m.id, connection.page_access_token, m.media_type);
+      const result = await getMediaInsights(m.id, connection.page_access_token, m.media_type);
+      if (result.error && !firstInsightsError) firstInsightsError = result.error;
       return {
         organization_id: connection.organization_id,
         ambassador_id: connection.ambassador_id,
@@ -94,7 +97,7 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
         caption: m.caption ?? null,
         like_count: m.like_count ?? 0,
         comments_count: m.comments_count ?? 0,
-        insights,
+        insights: result.data,
         posted_at: m.timestamp,
         last_synced_at: now,
       };
@@ -116,7 +119,9 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
 
   const connectionUpdate: Record<string, unknown> = {
     last_synced_at: now,
-    last_sync_error: null,
+    last_sync_error: firstInsightsError
+      ? `Insights call failed: ${firstInsightsError}`
+      : null,
   };
   if (profile) {
     connectionUpdate.ig_username = profile.username;

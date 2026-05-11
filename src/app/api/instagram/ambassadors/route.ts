@@ -23,6 +23,7 @@ export type AmbassadorWithConnection = {
     lastSyncedAt: string | null;
     lastSyncError: string | null;
     tokenExpiresAt: string | null;
+    scopes: string[];
     postCount: number;
   } | null;
 };
@@ -45,7 +46,7 @@ export async function GET() {
   const { data: connections, error: connErr } = await service
     .from("instagram_connections")
     .select(
-      "id, ambassador_id, ig_username, ig_profile_picture_url, ig_biography, ig_followers_count, ig_follows_count, ig_media_count, connected_at, last_synced_at, last_sync_error, token_expires_at",
+      "id, ambassador_id, ig_username, ig_profile_picture_url, ig_biography, ig_followers_count, ig_follows_count, ig_media_count, connected_at, last_synced_at, last_sync_error, token_expires_at, scopes",
     )
     .is("disconnected_at", null)
     .in("ambassador_id", ids);
@@ -87,6 +88,7 @@ export async function GET() {
             lastSyncedAt: c.last_synced_at,
             lastSyncError: c.last_sync_error,
             tokenExpiresAt: c.token_expires_at,
+            scopes: (c.scopes ?? []) as string[],
             postCount: postCounts.get(c.id) ?? 0,
           }
         : null,

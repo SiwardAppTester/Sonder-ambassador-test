@@ -106,6 +106,24 @@ type PagesResponse = {
   }>;
 };
 
+type PermissionsResponse = {
+  data: Array<{ permission: string; status: "granted" | "declined" | "expired" }>;
+};
+
+/**
+ * Returns the list of permissions Meta has actually granted to this token.
+ * Critical for diagnosing why insights might be empty even after reconnect:
+ * the user might have re-authorized but Meta could withhold a scope (use case
+ * mismatch, app review needed, user declined the permission, etc.).
+ */
+export async function getGrantedPermissions(userAccessToken: string): Promise<string[]> {
+  const params = new URLSearchParams({ access_token: userAccessToken });
+  const json = await graphFetch<PermissionsResponse>(
+    `${GRAPH_BASE}/me/permissions?${params.toString()}`,
+  );
+  return json.data.filter((p) => p.status === "granted").map((p) => p.permission);
+}
+
 /** List the Facebook Pages the authorising user manages. */
 export async function listPages(userAccessToken: string): Promise<PagesResponse["data"]> {
   const params = new URLSearchParams({
@@ -228,19 +246,25 @@ type IgInsightsResponse = {
  * some versions and errors in others — we swallow per-call errors so a bad
  * metric on one post doesn't kill the whole sync.
  */
+export type InsightsResult = {
+  data: Record<string, number>;
+  error?: string;
+};
+
 export async function getMediaInsights(
   mediaId: string,
   pageAccessToken: string,
   mediaType: IgMedia["media_type"],
-): Promise<Record<string, number>> {
+): Promise<InsightsResult> {
+  // Conservative per-type metric set. Meta 400s the whole call if any one
+  // metric is unsupported for the media type, so we keep each list to
+  // metrics confirmed to work in v21.0.
   const isVideoLike = mediaType === "VIDEO" || mediaType === "REELS";
-  // Image media doesn't support `shares` or `video_views`; asking for them
-  // 400s on the whole call. Per-type metric set keeps each call valid.
   const metrics = isVideoLike
-    ? ["reach", "total_interactions", "plays", "video_views", "shares", "saved"]
+    ? ["reach", "total_interactions", "video_views", "saved"]
     : mediaType === "CAROUSEL_ALBUM"
-      ? ["reach", "impressions", "engagement", "video_views", "shares", "saved"]
-      : ["reach", "impressions", "engagement", "saved"];
+      ? ["reach", "total_interactions", "saved"]
+      : ["reach", "total_interactions", "saved"];
 
   const params = new URLSearchParams({
     access_token: pageAccessToken,
@@ -255,8 +279,8 @@ export async function getMediaInsights(
     for (const row of json.data) {
       out[row.name] = row.values?.[0]?.value ?? 0;
     }
-    return out;
-  } catch {
-    return {};
+    return { data: out };
+  } catch (err) {
+    return { data: {}, error: err instanceof Error ? err.message : "insights call failed" };
   }
 }

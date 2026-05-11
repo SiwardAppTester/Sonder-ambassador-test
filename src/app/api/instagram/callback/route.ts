@@ -11,10 +11,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
+  getGrantedPermissions,
   getInstagramBusinessAccount,
   getInstagramUser,
   listPages,
-  REQUIRED_SCOPES,
 } from "@/lib/instagram/graph-api";
 import { OAUTH_STATE_COOKIE, verifyOAuthState } from "@/lib/instagram/oauth-state";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
@@ -117,6 +117,13 @@ export async function GET(req: NextRequest) {
     }
 
     const igProfile = await getInstagramUser(chosen.igUserId, chosen.page.access_token);
+
+    // Capture the scopes Meta ACTUALLY granted (not what we asked for). If
+    // insights are missing later, this column tells the user immediately.
+    const grantedScopes = await getGrantedPermissions(longLived.access_token).catch(
+      () => [] as string[],
+    );
+
     const service = getSupabaseServiceClient();
 
     const { data: ambassador, error: ambErr } = await service
@@ -148,7 +155,7 @@ export async function GET(req: NextRequest) {
       page_access_token: chosen.page.access_token,
       long_lived_user_token: longLived.access_token,
       token_expires_at: tokenExpiresAt,
-      scopes: [...REQUIRED_SCOPES],
+      scopes: grantedScopes,
       ig_followers_count: igProfile.followers_count ?? null,
       ig_follows_count: igProfile.follows_count ?? null,
       ig_media_count: igProfile.media_count ?? null,
