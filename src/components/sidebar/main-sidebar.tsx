@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { LayoutDashboard, FileText, Users, Settings, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandCustomizer } from "@/components/sidebar/brand-customizer";
+import { InstagramConnect } from "@/components/sidebar/instagram-connect";
 import { ThemeToggle } from "@/components/sidebar/theme-toggle";
 import type { ReactNode } from "react";
 
@@ -61,6 +62,7 @@ export function MainSidebar() {
             </Link>
           );
         })}
+        <InstagramConnect />
         <BrandCustomizer />
         <ThemeToggle />
       </nav>
