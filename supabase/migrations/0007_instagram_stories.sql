@@ -32,9 +32,12 @@ create unique index if not exists instagram_stories_unique_media
 create index if not exists instagram_stories_ambassador_posted
   on public.instagram_stories(ambassador_id, posted_at desc);
 
-create index if not exists instagram_stories_active
-  on public.instagram_stories(connection_id, expires_at desc)
-  where expires_at > now();
+-- Plain (non-partial) index on (connection_id, expires_at) — Postgres
+-- rejects partial-index predicates that use now() because the function
+-- isn't IMMUTABLE. Queries that filter on `expires_at > now()` still use
+-- this index via a range scan; the index is just slightly larger.
+create index if not exists instagram_stories_connection_expires
+  on public.instagram_stories(connection_id, expires_at desc);
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- RLS: same shape as instagram_posts (admin reads, service-role writes).
