@@ -130,9 +130,11 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
 
   // Stories — fetch insights per active story, then upsert. We deliberately
   // don't delete expired rows; once a story is in our DB we keep it.
+  let firstStoryInsightsError: string | null = null;
   const storyRows = await Promise.all(
     stories.map(async (s) => {
       const result = await getStoryInsights(s.id, connection.page_access_token);
+      if (result.error && !firstStoryInsightsError) firstStoryInsightsError = result.error;
       const postedAt = new Date(s.timestamp);
       const expiresAt = new Date(postedAt.getTime() + 24 * 60 * 60 * 1000);
       return {
@@ -162,11 +164,14 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
     }
   }
 
+  // Combine post + story insight diagnostics so the UI shows both.
+  const diagnostics = [
+    firstInsightsError ? `Posts insights: ${firstInsightsError}` : null,
+    firstStoryInsightsError ? `Stories insights: ${firstStoryInsightsError}` : null,
+  ].filter(Boolean);
   const connectionUpdate: Record<string, unknown> = {
     last_synced_at: now,
-    last_sync_error: firstInsightsError
-      ? `Insights call failed: ${firstInsightsError}`
-      : null,
+    last_sync_error: diagnostics.length > 0 ? diagnostics.join(" | ") : null,
   };
   if (profile) {
     connectionUpdate.ig_username = profile.username;

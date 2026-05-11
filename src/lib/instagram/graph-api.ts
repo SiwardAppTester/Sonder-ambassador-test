@@ -271,19 +271,24 @@ export async function listInstagramStories(
 }
 
 /**
- * Story-specific insights. Different metric set than feed media:
- * - reach: unique accounts that saw the story
- * - replies: DM replies to the story
- * - taps_forward: skipped to next story
- * - taps_back: went to previous story
- * - exits: closed stories from this story
- * - views: total times seen (replaced impressions in v22)
+ * Story-specific insights. Meta consolidated the granular tap/exit metrics
+ * into `navigation` (with a breakdown param) sometime in 2024 — using the
+ * old names now 400s. We stick to a conservative set known to work in v21
+ * (reach, replies, total_interactions); add more here once we verify them
+ * against your actual story responses.
+ *
+ * Note: Meta delays story insights by 10-30 min after posting. Empty data
+ * on a freshly-posted story is normal; re-sync later.
  */
 export async function getStoryInsights(
   storyMediaId: string,
   pageAccessToken: string,
 ): Promise<InsightsResult> {
-  const metrics = ["reach", "replies", "taps_forward", "taps_back", "exits", "views"];
+  // `impressions` is the v21 name for total views on stories (deprecated in
+  // v22 in favour of `views`, but still works). The per-metric fallback
+  // means including a metric that's been removed for this account is
+  // harmless — we just lose that one value.
+  const metrics = ["reach", "replies", "impressions", "views"];
   const params = new URLSearchParams({
     access_token: pageAccessToken,
     metric: metrics.join(","),

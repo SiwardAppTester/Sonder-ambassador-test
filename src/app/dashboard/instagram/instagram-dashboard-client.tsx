@@ -915,8 +915,11 @@ function StoryCard({ story }: { story: InstagramStoryRow }) {
   const [flipped, setFlipped] = useState(false);
   const m = story.insights ?? {};
   const reach = numberOrNull(m.reach);
+  // `impressions` (v21) and `views` (v22+) are the same thing for stories.
   const views = numberOrNull(m.views ?? m.impressions);
   const replies = numberOrNull(m.replies);
+  // Meta consolidated taps_forward/back/exits into `navigation` in 2024.
+  // Old keys may still be present for some accounts; render either.
   const tapsForward = numberOrNull(m.taps_forward);
   const tapsBack = numberOrNull(m.taps_back);
   const exits = numberOrNull(m.exits);
