@@ -251,26 +251,46 @@ export type InsightsResult = {
   error?: string;
 };
 
+/** Pull a single metric. Returns null on failure. Used as a fallback when the
+ *  bundled call fails because one metric in the bundle was unsupported. */
+async function fetchOneMetric(
+  mediaId: string,
+  pageAccessToken: string,
+  metric: string,
+): Promise<{ name: string; value: number } | null> {
+  const params = new URLSearchParams({ access_token: pageAccessToken, metric });
+  try {
+    const json = await graphFetch<IgInsightsResponse>(
+      `${GRAPH_BASE}/${mediaId}/insights?${params.toString()}`,
+    );
+    const row = json.data[0];
+    if (!row) return null;
+    return { name: row.name, value: row.values?.[0]?.value ?? 0 };
+  } catch {
+    return null;
+  }
+}
+
 export async function getMediaInsights(
   mediaId: string,
   pageAccessToken: string,
   mediaType: IgMedia["media_type"],
 ): Promise<InsightsResult> {
-  // Conservative per-type metric set. Meta 400s the whole call if any one
-  // metric is unsupported for the media type, so we keep each list to
-  // metrics confirmed to work in v21.0.
+  // Per-type metric set. `views` replaces both `video_views` (video) and
+  // `plays` (reels) — Meta unified these in 2024. Images don't have views;
+  // carousels can have video but the metric availability is inconsistent.
   const isVideoLike = mediaType === "VIDEO" || mediaType === "REELS";
   const metrics = isVideoLike
-    ? ["reach", "total_interactions", "video_views", "saved"]
+    ? ["reach", "total_interactions", "views", "saved", "shares"]
     : mediaType === "CAROUSEL_ALBUM"
       ? ["reach", "total_interactions", "saved"]
       : ["reach", "total_interactions", "saved"];
 
+  // Try the bundled call first — one HTTP request gets everything.
   const params = new URLSearchParams({
     access_token: pageAccessToken,
     metric: metrics.join(","),
   });
-
   try {
     const json = await graphFetch<IgInsightsResponse>(
       `${GRAPH_BASE}/${mediaId}/insights?${params.toString()}`,
@@ -280,7 +300,31 @@ export async function getMediaInsights(
       out[row.name] = row.values?.[0]?.value ?? 0;
     }
     return { data: out };
-  } catch (err) {
-    return { data: {}, error: err instanceof Error ? err.message : "insights call failed" };
+  } catch (bundleErr) {
+    // Bundle rejected (typically because one metric isn't supported for
+    // this media product type). Fall back to per-metric calls so the
+    // others still come through.
+    const results = await Promise.all(
+      metrics.map((m) => fetchOneMetric(mediaId, pageAccessToken, m)),
+    );
+    const merged: Record<string, number> = {};
+    const failed: string[] = [];
+    for (let i = 0; i < metrics.length; i++) {
+      const r = results[i];
+      if (r) merged[r.name] = r.value;
+      else failed.push(metrics[i]);
+    }
+    if (Object.keys(merged).length > 0) {
+      // Got at least some metrics — return them and note the failures.
+      return {
+        data: merged,
+        error: failed.length > 0 ? `unsupported metrics for this post: ${failed.join(", ")}` : undefined,
+      };
+    }
+    // Nothing came back at all — surface the bundle error so we can debug.
+    return {
+      data: {},
+      error: bundleErr instanceof Error ? bundleErr.message : "insights call failed",
+    };
   }
 }

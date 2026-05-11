@@ -599,8 +599,13 @@ function PostCard({ post }: { post: InstagramPostRow }) {
   // the back of the card renders "—" with the locked-scope hint.
   const m = post.insights ?? {};
   const reach = numberOrNull(m.reach);
-  const impressions = numberOrNull(m.impressions);
-  const views = numberOrNull(m.video_views ?? m.plays);
+  // Meta unified video view metrics under `views` in 2024; older accounts
+  // may still return `video_views` (legacy video) or `plays` (legacy reels).
+  const views = numberOrNull(m.views ?? m.video_views ?? m.plays);
+  // total_interactions = likes + comments + shares + saves rolled up. We
+  // surface it as its own chip; impressions was deprecated in v21 so we
+  // don't request it anymore.
+  const totalInteractions = numberOrNull(m.total_interactions);
   const shares = numberOrNull(m.shares);
   const saves = numberOrNull(m.saved);
 
@@ -709,9 +714,9 @@ function PostCard({ post }: { post: InstagramPostRow }) {
               />
               <MetricChip
                 icon={<Send className="size-3" />}
-                label="Impressions"
-                value={impressions}
-                requiresInsights={isVideo ? "n/a" : true}
+                label="Engagement"
+                value={totalInteractions}
+                requiresInsights
               />
               <MetricChip
                 icon={<Repeat2 className="size-3" />}
