@@ -10,17 +10,21 @@ import { createOAuthState, OAUTH_STATE_COOKIE } from "@/lib/instagram/oauth-stat
 
 const querySchema = z.object({
   ambassadorId: z.string().uuid(),
+  popup: z.enum(["0", "1"]).optional(),
 });
 
 export async function GET(req: NextRequest) {
   const parsed = querySchema.safeParse({
     ambassadorId: req.nextUrl.searchParams.get("ambassadorId"),
+    popup: req.nextUrl.searchParams.get("popup") ?? undefined,
   });
   if (!parsed.success) {
     return NextResponse.json({ error: "Missing or invalid ambassadorId" }, { status: 400 });
   }
 
-  const { nonce, cookieValue } = createOAuthState(parsed.data.ambassadorId);
+  const { nonce, cookieValue } = createOAuthState(parsed.data.ambassadorId, {
+    popup: parsed.data.popup === "1",
+  });
   const authUrl = buildAuthUrl(nonce);
 
   const res = NextResponse.redirect(authUrl);

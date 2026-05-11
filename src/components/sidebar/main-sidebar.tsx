@@ -3,10 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LayoutDashboard, FileText, Users, Settings, ShieldCheck } from "lucide-react";
+import {
+  Instagram,
+  LayoutDashboard,
+  FileText,
+  Users,
+  Settings,
+  ShieldCheck,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandCustomizer } from "@/components/sidebar/brand-customizer";
-import { InstagramConnect } from "@/components/sidebar/instagram-connect";
 import { ThemeToggle } from "@/components/sidebar/theme-toggle";
 import type { ReactNode } from "react";
 
@@ -31,6 +37,9 @@ const ITEMS: readonly Item[] = [
   },
   { href: "/dashboard/settings", labelKey: "settings", icon: <Settings className="size-[18px]" /> },
 ];
+
+// IG link is rendered separately below — not part of the i18n-keyed nav.
+const INSTAGRAM_HREF = "/dashboard/instagram";
 
 export function MainSidebar() {
   const t = useTranslations("Sidebar");
@@ -62,7 +71,17 @@ export function MainSidebar() {
             </Link>
           );
         })}
-        <InstagramConnect />
+        <Link
+          href={INSTAGRAM_HREF}
+          aria-label="Instagram"
+          className={cn(
+            "flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors",
+            "hover:bg-muted hover:text-foreground",
+            pathname.startsWith(INSTAGRAM_HREF) && "bg-muted text-foreground",
+          )}
+        >
+          <Instagram className="size-[18px]" />
+        </Link>
         <BrandCustomizer />
         <ThemeToggle />
       </nav>

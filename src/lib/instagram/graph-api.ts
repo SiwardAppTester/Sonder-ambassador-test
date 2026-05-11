@@ -135,11 +135,16 @@ export async function getInstagramBusinessAccount(
   return json.instagram_business_account?.id ?? null;
 }
 
-type IgUserResponse = {
+export type IgUserResponse = {
   id: string;
   username: string;
+  name?: string;
+  biography?: string;
+  profile_picture_url?: string;
   followers_count?: number;
+  follows_count?: number;
   media_count?: number;
+  website?: string;
 };
 
 /** Fetch profile info for an IG Business account. */
@@ -149,7 +154,17 @@ export async function getInstagramUser(
 ): Promise<IgUserResponse> {
   const params = new URLSearchParams({
     access_token: pageAccessToken,
-    fields: "id,username,followers_count,media_count",
+    fields: [
+      "id",
+      "username",
+      "name",
+      "biography",
+      "profile_picture_url",
+      "followers_count",
+      "follows_count",
+      "media_count",
+      "website",
+    ].join(","),
   });
   return graphFetch<IgUserResponse>(`${GRAPH_BASE}/${igUserId}?${params.toString()}`);
 }

@@ -1,7 +1,6 @@
 /**
- * Lists ambassadors for the test sidebar drawer, joined with their active
- * Instagram connection (if any). Service-role: this is admin-only test
- * tooling and the demo doesn't have caller auth threaded everywhere yet.
+ * Lists ambassadors for the Instagram dashboard, joined with their active
+ * connection's profile snapshot. Service-role: admin-only test tooling.
  */
 
 import { NextResponse } from "next/server";
@@ -15,6 +14,11 @@ export type AmbassadorWithConnection = {
   connection: {
     id: string;
     igUsername: string;
+    igProfilePictureUrl: string | null;
+    igBiography: string | null;
+    igFollowersCount: number | null;
+    igFollowsCount: number | null;
+    igMediaCount: number | null;
     connectedAt: string;
     lastSyncedAt: string | null;
     lastSyncError: string | null;
@@ -41,20 +45,19 @@ export async function GET() {
   const { data: connections, error: connErr } = await service
     .from("instagram_connections")
     .select(
-      "id, ambassador_id, ig_username, connected_at, last_synced_at, last_sync_error, token_expires_at",
+      "id, ambassador_id, ig_username, ig_profile_picture_url, ig_biography, ig_followers_count, ig_follows_count, ig_media_count, connected_at, last_synced_at, last_sync_error, token_expires_at",
     )
     .is("disconnected_at", null)
     .in("ambassador_id", ids);
 
   if (connErr) return NextResponse.json({ error: connErr.message }, { status: 500 });
 
-  // Count posts per connection so the drawer can show "12 posts synced".
   const connectionIds = (connections ?? []).map((c) => c.id);
   const postCounts = new Map<string, number>();
   if (connectionIds.length > 0) {
     const { data: counts } = await service
       .from("instagram_posts")
-      .select("connection_id", { count: "exact", head: false })
+      .select("connection_id")
       .in("connection_id", connectionIds);
     for (const row of counts ?? []) {
       postCounts.set(row.connection_id, (postCounts.get(row.connection_id) ?? 0) + 1);
@@ -75,6 +78,11 @@ export async function GET() {
         ? {
             id: c.id,
             igUsername: c.ig_username,
+            igProfilePictureUrl: c.ig_profile_picture_url,
+            igBiography: c.ig_biography,
+            igFollowersCount: c.ig_followers_count,
+            igFollowsCount: c.ig_follows_count,
+            igMediaCount: c.ig_media_count,
             connectedAt: c.connected_at,
             lastSyncedAt: c.last_synced_at,
             lastSyncError: c.last_sync_error,

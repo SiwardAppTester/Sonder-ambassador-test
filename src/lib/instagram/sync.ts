@@ -6,6 +6,7 @@
 
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import {
+  getInstagramUser,
   getMediaInsights,
   listInstagramMedia,
   type IgMedia,
@@ -48,13 +49,23 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
     throw new Error(`Connection not found or already disconnected: ${connectionId}`);
   }
 
+  // Refresh profile snapshot (follower count etc.) in parallel with media.
+  // Profile fetch failure is non-fatal — we still want media even if the
+  // user endpoint is rate-limited.
   let media: IgMedia[];
+  let profile: Awaited<ReturnType<typeof getInstagramUser>> | null = null;
   try {
-    media = await listInstagramMedia(
-      connection.ig_business_account_id,
-      connection.page_access_token,
-      25,
-    );
+    [media, profile] = await Promise.all([
+      listInstagramMedia(
+        connection.ig_business_account_id,
+        connection.page_access_token,
+        25,
+      ),
+      getInstagramUser(
+        connection.ig_business_account_id,
+        connection.page_access_token,
+      ).catch(() => null),
+    ]);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown sync error";
     await service
@@ -103,9 +114,21 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
     }
   }
 
+  const connectionUpdate: Record<string, unknown> = {
+    last_synced_at: now,
+    last_sync_error: null,
+  };
+  if (profile) {
+    connectionUpdate.ig_username = profile.username;
+    connectionUpdate.ig_followers_count = profile.followers_count ?? null;
+    connectionUpdate.ig_follows_count = profile.follows_count ?? null;
+    connectionUpdate.ig_media_count = profile.media_count ?? null;
+    connectionUpdate.ig_profile_picture_url = profile.profile_picture_url ?? null;
+    connectionUpdate.ig_biography = profile.biography ?? null;
+  }
   await service
     .from("instagram_connections")
-    .update({ last_synced_at: now, last_sync_error: null })
+    .update(connectionUpdate)
     .eq("id", connection.id);
 
   return {

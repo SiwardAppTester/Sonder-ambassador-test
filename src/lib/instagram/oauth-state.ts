@@ -32,10 +32,14 @@ function sign(payload: string): string {
 export type OAuthStatePayload = {
   nonce: string;
   ambassadorId: string;
+  popup: boolean;
   exp: number;
 };
 
-export function createOAuthState(ambassadorId: string): {
+export function createOAuthState(
+  ambassadorId: string,
+  options: { popup?: boolean } = {},
+): {
   nonce: string;
   cookieValue: string;
 } {
@@ -43,6 +47,7 @@ export function createOAuthState(ambassadorId: string): {
   const payload: OAuthStatePayload = {
     nonce,
     ambassadorId,
+    popup: options.popup ?? false,
     exp: Math.floor(Date.now() / 1000) + TTL_SECONDS,
   };
   const json = JSON.stringify(payload);
