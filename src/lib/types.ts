@@ -35,6 +35,9 @@ export type Campaign = {
   startDate: string | null;
   endDate: string | null;
   maxPointsCap: number;
+  pointsPerShare: number;
+  pointsPer1kViews: number;
+  hashtags: readonly string[];
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;

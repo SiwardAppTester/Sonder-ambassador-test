@@ -31,8 +31,6 @@ export function AddContentDrawer({
   const upload = useUploadCampaignContent();
 
   const [file, setFile] = useState<FileDropPick | null>(null);
-  const [pointsPerShare, setPointsPerShare] = useState<number | "">(50);
-  const [pointsPer1k, setPointsPer1k] = useState<number | "">(10);
   const [caption, setCaption] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [instructions, setInstructions] = useState("");
@@ -41,8 +39,6 @@ export function AddContentDrawer({
 
   function reset() {
     setFile(null);
-    setPointsPerShare(50);
-    setPointsPer1k(10);
     setCaption("");
     setHashtags([]);
     setInstructions("");
@@ -53,24 +49,14 @@ export function AddContentDrawer({
     e.preventDefault();
     setError(null);
     if (!file) return setError("Pick a file first.");
-    if (typeof pointsPerShare !== "number" || pointsPerShare < 0)
-      return setError("Points per share must be 0 or higher.");
-    if (typeof pointsPer1k !== "number" || pointsPer1k < 0)
-      return setError("Points per 1k views must be 0 or higher.");
 
     try {
       await upload.mutateAsync({
         campaignId,
-        type: file.type,
-        fileUrl: file.previewUrl,
-        thumbnailUrl: file.previewUrl,
-        fileSizeBytes: file.file.size,
-        pointsPerShare,
-        pointsPer1kViews: pointsPer1k,
+        file: file.file,
         captionTemplate: caption.trim() || null,
         hashtags,
         instructions: instructions.trim() || null,
-        displayOrder: null,
       });
       // Brief: "save adds the content and clears the drawer for the next one".
       reset();
@@ -93,37 +79,6 @@ export function AddContentDrawer({
             <div>
               <Label className="mb-1.5 block">File</Label>
               <FileDrop value={file} onChange={setFile} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="pps">Points per share</Label>
-                <Input
-                  id="pps"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={pointsPerShare}
-                  onChange={(e) =>
-                    setPointsPerShare(e.target.value === "" ? "" : Number(e.target.value))
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="pp1k">Points per 1k views</Label>
-                <Input
-                  id="pp1k"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={pointsPer1k}
-                  onChange={(e) =>
-                    setPointsPer1k(e.target.value === "" ? "" : Number(e.target.value))
-                  }
-                  required
-                />
-              </div>
             </div>
 
             <div className="space-y-1.5">

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { DayPicker, type DateRange } from "react-day-picker";
 import "react-day-picker/style.css";
@@ -9,49 +8,54 @@ import { Drawer, DrawerBody, DrawerFooter, DrawerHeader } from "@/components/ui/
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { HashtagInput } from "@/components/ui/hashtag-input";
-import { useCreateCampaign } from "@/hooks/use-campaigns";
+import { useUpdateCampaign } from "@/hooks/use-campaigns";
+import type { Campaign } from "@/lib/types";
 
 /**
- * Stage 1 of the create-campaign flow per the brief: name, description,
- * cover image, start/end dates, max points cap. Submits a draft campaign
- * and routes to its detail page; content is added from there via the
- * Add-content drawer.
- *
- * Visually consistent with the Add-content flow — same right-side drawer
- * pattern so create + add-to feel like the same family of action.
- *
- * Cover image upload is deferred. Field will land alongside the campaign
- * cover signed-upload server action when grafted in.
+ * Edit-campaign drawer — mirror of NewCampaignDrawer but seeded with the
+ * existing campaign's values and wired to `useUpdateCampaign`. Only the
+ * fields here are sent in the patch; status changes go through the
+ * Publish/Pause/End buttons on the detail page (separate mutation).
  */
-export function NewCampaignDrawer({
+export function EditCampaignDrawer({
   open,
   onClose,
+  campaign,
 }: {
   open: boolean;
   onClose: () => void;
+  campaign: Campaign;
 }) {
-  const router = useRouter();
-  const create = useCreateCampaign();
+  const update = useUpdateCampaign();
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [maxPointsCap, setMaxPointsCap] = useState<number | "">("");
-  const [pointsPerShare, setPointsPerShare] = useState<number | "">(50);
-  const [pointsPer1kViews, setPointsPer1kViews] = useState<number | "">(25);
-  const [range, setRange] = useState<DateRange | undefined>();
-  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [name, setName] = useState(campaign.name);
+  const [description, setDescription] = useState(campaign.description ?? "");
+  const [maxPointsCap, setMaxPointsCap] = useState<number | "">(campaign.maxPointsCap);
+  const [pointsPerShare, setPointsPerShare] = useState<number | "">(campaign.pointsPerShare);
+  const [pointsPer1kViews, setPointsPer1kViews] = useState<number | "">(campaign.pointsPer1kViews);
+  const [range, setRange] = useState<DateRange | undefined>(() => ({
+    from: campaign.startDate ? new Date(campaign.startDate) : undefined,
+    to: campaign.endDate ? new Date(campaign.endDate) : undefined,
+  }));
+  const [hashtags, setHashtags] = useState<string[]>(() => [...campaign.hashtags]);
   const [error, setError] = useState<string | null>(null);
 
-  function reset() {
-    setName("");
-    setDescription("");
-    setMaxPointsCap("");
-    setPointsPerShare(50);
-    setPointsPer1kViews(25);
-    setRange(undefined);
-    setHashtags([]);
+  // Re-seed when the drawer re-opens for a different campaign or after
+  // an external update, so we never show stale form state.
+  useEffect(() => {
+    if (!open) return;
+    setName(campaign.name);
+    setDescription(campaign.description ?? "");
+    setMaxPointsCap(campaign.maxPointsCap);
+    setPointsPerShare(campaign.pointsPerShare);
+    setPointsPer1kViews(campaign.pointsPer1kViews);
+    setRange({
+      from: campaign.startDate ? new Date(campaign.startDate) : undefined,
+      to: campaign.endDate ? new Date(campaign.endDate) : undefined,
+    });
+    setHashtags([...campaign.hashtags]);
     setError(null);
-  }
+  }, [open, campaign]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -67,21 +71,22 @@ export function NewCampaignDrawer({
       return setError("Points per 1k views must be 0 or higher");
     }
     try {
-      const created = await create.mutateAsync({
-        name: name.trim(),
-        description: description.trim() || undefined,
-        maxPointsCap,
-        pointsPerShare,
-        pointsPer1kViews,
-        startDate: range?.from ? range.from.toISOString() : null,
-        endDate: range?.to ? range.to.toISOString() : null,
-        hashtags,
+      await update.mutateAsync({
+        id: campaign.id,
+        patch: {
+          name: name.trim(),
+          description: description.trim() || null,
+          maxPointsCap,
+          pointsPerShare,
+          pointsPer1kViews,
+          startDate: range?.from ? range.from.toISOString() : null,
+          endDate: range?.to ? range.to.toISOString() : null,
+          hashtags,
+        },
       });
-      reset();
       onClose();
-      router.push(`/dashboard/ambassadors/campaigns/${created.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create campaign");
+      setError(err instanceof Error ? err.message : "Failed to update campaign");
     }
   }
 
@@ -94,10 +99,10 @@ export function NewCampaignDrawer({
   })();
 
   return (
-    <Drawer open={open} onClose={onClose} ariaLabel="New campaign" size="md">
+    <Drawer open={open} onClose={onClose} ariaLabel="Edit campaign" size="md">
       <DrawerHeader
-        title="New campaign"
-        description="Set the basics now. You'll add content from the campaign page."
+        title="Edit campaign"
+        description="Update the basics. Status changes use Publish/Pause/End on the detail page."
       />
       <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
         <DrawerBody>
@@ -108,7 +113,6 @@ export function NewCampaignDrawer({
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Summer rooftop nights"
                 required
               />
             </div>
@@ -171,7 +175,6 @@ export function NewCampaignDrawer({
                 onChange={(e) =>
                   setMaxPointsCap(e.target.value === "" ? "" : Number(e.target.value))
                 }
-                placeholder="e.g. 50000"
                 required
               />
             </div>
@@ -223,12 +226,12 @@ export function NewCampaignDrawer({
           </div>
         </DrawerBody>
         <DrawerFooter>
-          <Button type="button" variant="ghost" onClick={onClose} disabled={create.isPending}>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={update.isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={create.isPending}>
-            {create.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-            Create campaign
+          <Button type="submit" disabled={update.isPending}>
+            {update.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+            Save changes
           </Button>
         </DrawerFooter>
       </form>

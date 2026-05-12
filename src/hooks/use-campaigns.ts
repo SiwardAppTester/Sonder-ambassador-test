@@ -11,14 +11,59 @@ import {
 } from "@/lib/mock/data";
 import { mockDelay } from "@/hooks/mock-delay";
 import { useOrganization } from "@/providers/organization-provider";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Campaign, CampaignMetrics, CampaignsListMetrics, CampaignStatus } from "@/lib/types";
 
 /**
  * Hook layer mirrors the brief's resource-per-file pattern. Each query
  * key starts with `["campaigns", ...]` so we can invalidate broadly on
- * mutation. Today these read from `mock/data.ts`; swap the implementations
- * to call the hand-written Supabase clients later without touching pages.
+ * mutation.
+ *
+ * The list / detail / create hooks below talk to Supabase; metrics,
+ * time-series and "top X" hooks still read from mock data because those
+ * depend on aggregated share events that don't exist in the DB yet.
  */
+
+type CampaignRow = {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  cover_image_path: string | null;
+  status: CampaignStatus;
+  start_date: string | null;
+  end_date: string | null;
+  max_points_cap: number;
+  points_per_share: number;
+  points_per_1k_views: number;
+  hashtags: string[] | null;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+};
+
+const CAMPAIGN_COLUMNS =
+  "id, organization_id, name, description, cover_image_path, status, start_date, end_date, max_points_cap, points_per_share, points_per_1k_views, hashtags, created_at, updated_at, archived_at";
+
+function mapCampaign(row: CampaignRow): Campaign {
+  return {
+    id: row.id,
+    organizationId: row.organization_id,
+    name: row.name,
+    description: row.description,
+    coverImageUrl: row.cover_image_path,
+    status: row.status,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    maxPointsCap: row.max_points_cap,
+    pointsPerShare: row.points_per_share,
+    pointsPer1kViews: row.points_per_1k_views,
+    hashtags: row.hashtags ?? [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    archivedAt: row.archived_at,
+  };
+}
 
 export type CampaignFilters = {
   search?: string;
@@ -27,36 +72,44 @@ export type CampaignFilters = {
 };
 
 export function useCampaigns(filters: CampaignFilters = {}) {
+  const org = useOrganization();
   return useQuery({
-    queryKey: ["campaigns", "list", filters],
+    queryKey: ["campaigns", "list", org.id, filters],
     queryFn: async () => {
-      const search = filters.search?.trim().toLowerCase() ?? "";
+      const supabase = getSupabaseBrowserClient();
+      let q = supabase
+        .from("campaigns")
+        .select(
+          CAMPAIGN_COLUMNS,
+        )
+        .eq("organization_id", org.id)
+        .is("archived_at", null);
+
       const status = filters.status ?? "all";
+      if (status !== "all") {
+        q = q.eq("status", status);
+      }
+      const search = filters.search?.trim();
+      if (search) {
+        q = q.ilike("name", `%${search}%`);
+      }
       const sort = filters.sort ?? "recent";
+      switch (sort) {
+        case "ending_soon":
+          // Nulls last in PostgREST ascending sort.
+          q = q.order("end_date", { ascending: true, nullsFirst: false });
+          break;
+        case "most_points":
+          q = q.order("max_points_cap", { ascending: false });
+          break;
+        case "recent":
+        default:
+          q = q.order("created_at", { ascending: false });
+      }
 
-      const filtered = mockCampaigns.filter((c) => {
-        if (c.archivedAt) return false;
-        if (status !== "all" && c.status !== status) return false;
-        if (search && !c.name.toLowerCase().includes(search)) return false;
-        return true;
-      });
-
-      const sorted = [...filtered].sort((a, b) => {
-        switch (sort) {
-          case "ending_soon":
-            return (
-              (a.endDate ? new Date(a.endDate).getTime() : Infinity) -
-              (b.endDate ? new Date(b.endDate).getTime() : Infinity)
-            );
-          case "most_points":
-            return b.maxPointsCap - a.maxPointsCap;
-          case "recent":
-          default:
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        }
-      });
-
-      return mockDelay(sorted);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data as CampaignRow[]).map(mapCampaign);
     },
   });
 }
@@ -66,9 +119,17 @@ export function useCampaign(campaignId: string | null) {
     queryKey: ["campaigns", "detail", campaignId],
     enabled: !!campaignId,
     queryFn: async () => {
-      const found = mockCampaigns.find((c) => c.id === campaignId);
-      if (!found) throw new Error(`Campaign ${campaignId} not found`);
-      return mockDelay(found);
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("campaigns")
+        .select(
+          CAMPAIGN_COLUMNS,
+        )
+        .eq("id", campaignId!)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error(`Campaign ${campaignId} not found`);
+      return mapCampaign(data as CampaignRow);
     },
   });
 }
@@ -130,6 +191,9 @@ export type CreateCampaignInput = {
   startDate?: string | null;
   endDate?: string | null;
   maxPointsCap: number;
+  pointsPerShare: number;
+  pointsPer1kViews: number;
+  hashtags?: readonly string[];
 };
 
 export function useCreateCampaign() {
@@ -137,22 +201,30 @@ export function useCreateCampaign() {
   const org = useOrganization();
   return useMutation({
     mutationFn: async (input: CreateCampaignInput) => {
-      const created: Campaign = {
-        id: `c-${Math.random().toString(36).slice(2, 8)}`,
-        organizationId: org.id,
-        name: input.name,
-        description: input.description ?? null,
-        coverImageUrl: input.coverImageUrl ?? null,
-        status: "draft",
-        startDate: input.startDate ?? null,
-        endDate: input.endDate ?? null,
-        maxPointsCap: input.maxPointsCap,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        archivedAt: null,
-      };
-      mockCampaigns.unshift(created);
-      return mockDelay(created, 200);
+      const supabase = getSupabaseBrowserClient();
+      // Insert as 'active' so the campaign is immediately visible on mobile
+      // (mobile RLS filters status = 'active' AND archived_at IS NULL — see
+      // migration 0012). When a draft/publish workflow lands later, move
+      // this back to 'draft' and add a separate publish action.
+      const { data, error } = await supabase
+        .from("campaigns")
+        .insert({
+          organization_id: org.id,
+          name: input.name,
+          description: input.description ?? null,
+          cover_image_path: input.coverImageUrl ?? null,
+          start_date: input.startDate ?? null,
+          end_date: input.endDate ?? null,
+          max_points_cap: input.maxPointsCap,
+          points_per_share: input.pointsPerShare,
+          points_per_1k_views: input.pointsPer1kViews,
+          hashtags: input.hashtags ? [...input.hashtags] : [],
+          status: "active",
+        })
+        .select(CAMPAIGN_COLUMNS)
+        .single();
+      if (error || !data) throw error ?? new Error("Insert returned no row");
+      return mapCampaign(data as CampaignRow);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["campaigns"] });
@@ -163,15 +235,30 @@ export function useCreateCampaign() {
 export function useUpdateCampaign() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; patch: Partial<Campaign> }) => {
-      const idx = mockCampaigns.findIndex((c) => c.id === input.id);
-      if (idx === -1) throw new Error("not found");
-      mockCampaigns[idx] = {
-        ...mockCampaigns[idx],
-        ...input.patch,
-        updatedAt: new Date().toISOString(),
-      };
-      return mockDelay(mockCampaigns[idx], 150);
+    mutationFn: async (input: { id: string; patch: Partial<Campaign> }): Promise<Campaign> => {
+      const supabase = getSupabaseBrowserClient();
+      // Map camelCase domain fields → snake_case DB columns. Only fields
+      // present in the patch get updated; everything else is left alone.
+      const patch: Record<string, unknown> = {};
+      if (input.patch.name !== undefined) patch.name = input.patch.name;
+      if (input.patch.description !== undefined) patch.description = input.patch.description;
+      if (input.patch.startDate !== undefined) patch.start_date = input.patch.startDate;
+      if (input.patch.endDate !== undefined) patch.end_date = input.patch.endDate;
+      if (input.patch.maxPointsCap !== undefined) patch.max_points_cap = input.patch.maxPointsCap;
+      if (input.patch.coverImageUrl !== undefined) patch.cover_image_path = input.patch.coverImageUrl;
+      if (input.patch.pointsPerShare !== undefined) patch.points_per_share = input.patch.pointsPerShare;
+      if (input.patch.pointsPer1kViews !== undefined) patch.points_per_1k_views = input.patch.pointsPer1kViews;
+      if (input.patch.hashtags !== undefined) patch.hashtags = [...input.patch.hashtags];
+      const { data, error } = await supabase
+        .from("campaigns")
+        .update(patch)
+        .eq("id", input.id)
+        .select(
+          CAMPAIGN_COLUMNS,
+        )
+        .single();
+      if (error || !data) throw error ?? new Error("Update returned no row");
+      return mapCampaign(data as CampaignRow);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns"] }),
   });

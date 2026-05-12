@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import { Loader2, Pause, Play, Plus, Square } from "lucide-react";
+import { Loader2, Pause, Pencil, Play, Plus, Square } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { PermissionGuard } from "@/components/permission-guard";
 import { usePermissions } from "@/providers/permissions-provider";
@@ -23,6 +23,7 @@ import { BestContentChart } from "@/components/charts/best-content-chart";
 import { ContentGrid } from "@/components/campaigns/content-grid";
 import { TopSharersStrip } from "@/components/campaigns/top-sharers-strip";
 import { AddContentDrawer } from "@/components/campaigns/add-content-drawer";
+import { EditCampaignDrawer } from "@/components/campaigns/edit-campaign-drawer";
 import { useRealtimeCampaignMetrics } from "@/hooks/use-realtime";
 import { formatCount, formatDateRange, formatMoney, formatPoints } from "@/lib/format";
 
@@ -36,6 +37,7 @@ export default function CampaignDetailPage({
   const { hasPermission } = usePermissions();
   const canManage = hasPermission("ambassador.campaign.manage");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   useRealtimeCampaignMetrics(campaignId);
 
   const { data: campaign, isLoading: campaignLoading } = useCampaign(campaignId);
@@ -96,6 +98,10 @@ export default function CampaignDetailPage({
           actions={
             canManage ? (
               <>
+                <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+                  <Pencil className="size-3.5" />
+                  Edit
+                </Button>
                 {canEnd ? (
                   <Button
                     size="sm"
@@ -201,6 +207,11 @@ export default function CampaignDetailPage({
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
             campaignId={campaignId}
+          />
+          <EditCampaignDrawer
+            open={editOpen}
+            onClose={() => setEditOpen(false)}
+            campaign={campaign}
           />
         </PageShell>
       )}
