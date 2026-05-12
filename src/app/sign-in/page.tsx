@@ -1,13 +1,30 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
+// Next.js requires `useSearchParams()` to live inside a Suspense
+// boundary; otherwise prod builds fail with "missing-suspense-with-
+// csr-bailout". The form lives in a child component so we can wrap it.
 export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <SignInForm />
+    </Suspense>
+  );
+}
+
+function SignInForm() {
   const router = useRouter();
   const params = useSearchParams();
   const redirectTo = params.get("redirect") ?? "/dashboard/ambassadors/overview";
